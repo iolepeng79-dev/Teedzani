@@ -1,0 +1,5 @@
+{
+  "name": "TourBots",
+  "description": "Unified tourism discovery platform for Botswana.",
+  "requestFramePermissions": ["geolocation"]
+}
