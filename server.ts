@@ -1,212 +1,63 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const db = new Database("tourbots.db");
+const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 
-// Initialize Database
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL, -- tourist, business, admin
-    country TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS businesses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    region TEXT NOT NULL,
-    town TEXT NOT NULL,
-    phone TEXT,
-    whatsapp TEXT,
-    email TEXT,
-    description TEXT,
-    package TEXT DEFAULT 'Basic', -- Basic, Standard, Premium
-    status TEXT DEFAULT 'pending', -- pending, approved, rejected
-    certificateUrl TEXT,
-    paymentProofUrl TEXT,
-    FOREIGN KEY (userId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS listings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    businessId INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    category TEXT NOT NULL,
-    region TEXT NOT NULL,
-    town TEXT NOT NULL,
-    image TEXT,
-    rating REAL DEFAULT 0,
-    reviewCount INTEGER DEFAULT 0,
-    FOREIGN KEY (businessId) REFERENCES businesses(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS analytics (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    listingId INTEGER,
-    businessId INTEGER,
-    userId INTEGER,
-    type TEXT NOT NULL, -- view, save, inquiry, call, whatsapp, email, booking_click, search
-    metadata TEXT, -- JSON string for origin, search query, etc.
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (listingId) REFERENCES listings(id),
-    FOREIGN KEY (businessId) REFERENCES businesses(id),
-    FOREIGN KEY (userId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS search_queries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER,
-    query TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS saved_listings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userId INTEGER NOT NULL,
-    listingId INTEGER NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(userId, listingId),
-    FOREIGN KEY (userId) REFERENCES users(id),
-    FOREIGN KEY (listingId) REFERENCES listings(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT,
-    comment TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    listingId INTEGER NOT NULL,
-    userId INTEGER NOT NULL,
-    rating INTEGER,
-    comment TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (listingId) REFERENCES listings(id),
-    FOREIGN KEY (userId) REFERENCES users(id)
-  );
-`);
-
-// Seed Admin if not exists
-const admin = db.prepare("SELECT * FROM users WHERE role = 'admin'").get();
-if (!admin) {
-  db.prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)").run(
-    "Admin",
-    "admin@tourbots.bw",
-    "admin123",
-    "admin"
-  );
-}
-
-// Seed some initial listings for Botswana
-const existingListings = db.prepare("SELECT COUNT(*) as count FROM listings").get() as { count: number };
-if (existingListings.count === 0) {
-  const seedListings = [
-    { name: "Chobe Game Lodge", category: "Lodges", region: "Chobe", town: "Kasane", description: "Luxury lodge in Chobe National Park." },
-    { name: "Okavango Delta Safari", category: "Safari Camps", region: "North-West", town: "Maun", description: "Authentic safari experience." },
-    { name: "Gaborone Sun", category: "Hotels", region: "South-East", town: "Gaborone", description: "Premier hotel in the capital." },
-    { name: "Sanctuary Baines' Camp", category: "Safari Camps", region: "North-West", town: "Maun", description: "Eco-friendly camp on the Boro River." },
-    { name: "The Beef Baron", category: "Restaurants", region: "South-East", town: "Gaborone", description: "Famous steakhouse in Gaborone." },
-  ];
-
-  // We need a business for these listings
-  const adminUser = db.prepare("SELECT id FROM users WHERE role = 'admin'").get() as { id: number };
-  const bizId = db.prepare("INSERT INTO businesses (userId, name, category, region, town, status) VALUES (?, ?, ?, ?, ?, ?)").run(
-    adminUser.id, "TourBots Official", "Travel & Tours", "South-East", "Gaborone", "approved"
-  ).lastInsertRowid;
-
-  for (const l of seedListings) {
-    const listingId = db.prepare("INSERT INTO listings (businessId, name, category, region, town, description, image) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
-      bizId, l.name, l.category, l.region, l.town, l.description, `https://picsum.photos/seed/${l.name.replace(/\s/g, '')}/800/600`
-    ).lastInsertRowid;
-
-    // Seed some analytics for each listing
-    const types = ['view', 'save', 'inquiry', 'call', 'whatsapp', 'email', 'booking_click'];
-    for (let i = 0; i < 50; i++) {
-      const type = types[Math.floor(Math.random() * types.length)];
-      const daysAgo = Math.floor(Math.random() * 30);
-      db.prepare(`
-        INSERT INTO analytics (listingId, businessId, type, timestamp) 
-        VALUES (?, ?, ?, datetime('now', '-${daysAgo} days'))
-      `).run(listingId, bizId, type);
-    }
-  }
-}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function startServer() {
   const app = express();
   app.use(express.json());
 
   // API Routes
-  app.post("/api/auth/login", (req, res) => {
-    const { email, password, role } = req.body;
-    const user = db.prepare("SELECT * FROM users WHERE email = ? AND password = ? AND role = ?").get(email, password, role) as any;
-    if (user) {
-      if (role === 'business') {
-        const business = db.prepare("SELECT * FROM businesses WHERE userId = ?").get(user.id) as any;
-        return res.json({ user, business });
-      }
-      res.json({ user });
-    } else {
-      res.status(401).json({ error: "Invalid credentials" });
-    }
+  app.get("/api/listings", async (req, res) => {
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*, businesses!inner(status)")
+      .eq("businesses.status", "approved");
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
   });
 
-  app.post("/api/auth/register", (req, res) => {
-    const { name, email, password, role, country } = req.body;
-    try {
-      const result = db.prepare("INSERT INTO users (name, email, password, role, country) VALUES (?, ?, ?, ?, ?)").run(
-        name, email, password, role, country || null
-      );
-      const user = db.prepare("SELECT * FROM users WHERE id = ?").get(result.lastInsertRowid);
-      res.json({ user });
-    } catch (e: any) {
-      res.status(400).json({ error: "Email already exists" });
-    }
+  app.get("/api/listings/:id", async (req, res) => {
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("id", req.params.id)
+      .single();
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
   });
 
-  app.get("/api/listings", (req, res) => {
-    const listings = db.prepare(`
-      SELECT l.*, b.status as businessStatus 
-      FROM listings l 
-      JOIN businesses b ON l.businessId = b.id 
-      WHERE b.status = 'approved'
-    `).all();
-    res.json(listings);
-  });
-
-  app.get("/api/listings/:id", (req, res) => {
-    const listing = db.prepare("SELECT * FROM listings WHERE id = ?").get(req.params.id);
-    res.json(listing);
-  });
-
-  app.post("/api/analytics/track", (req, res) => {
+  app.post("/api/analytics/track", async (req, res) => {
     const { listingId, businessId, userId, type, metadata } = req.body;
-    db.prepare(`
-      INSERT INTO analytics (listingId, businessId, userId, type, metadata) 
-      VALUES (?, ?, ?, ?, ?)
-    `).run(listingId || null, businessId || null, userId || null, type, JSON.stringify(metadata || {}));
+    const { error } = await supabase
+      .from("analytics")
+      .insert({
+        listing_id: listingId || null,
+        business_id: businessId || null,
+        user_id: userId || null,
+        type,
+        metadata: metadata || {}
+      });
+    
+    if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
   });
 
   app.get("/api/weather/:location", (req, res) => {
-    // Mock weather data for Botswana locations
     const locations: Record<string, any> = {
       "Gaborone": { temp: 28, condition: "Sunny", icon: "Sun", seasonal: "Good for city tours" },
       "Maun": { temp: 32, condition: "Sunny", icon: "Sun", seasonal: "Peak Safari Season" },
@@ -218,13 +69,14 @@ async function startServer() {
     res.json(data);
   });
 
-  app.post("/api/planner/generate", (req, res) => {
+  app.post("/api/planner/generate", async (req, res) => {
     const { days, budget, interests } = req.body;
-    const listings = db.prepare(`
-      SELECT l.* FROM listings l 
-      JOIN businesses b ON l.businessId = b.id 
-      WHERE b.status = 'approved'
-    `).all() as any[];
+    const { data: listings, error } = await supabase
+      .from("listings")
+      .select("*, businesses!inner(status)")
+      .eq("businesses.status", "approved");
+    
+    if (error) return res.status(500).json({ error: error.message });
     
     const itineraryDays = [];
     const recommendations = [
@@ -236,7 +88,7 @@ async function startServer() {
     ];
 
     for (let i = 1; i <= days; i++) {
-      const dayListings = listings.sort(() => 0.5 - Math.random()).slice(0, 2);
+      const dayListings = (listings || []).sort(() => 0.5 - Math.random()).slice(0, 2);
       itineraryDays.push({
         day: i,
         activities: [
@@ -259,55 +111,79 @@ async function startServer() {
     });
   });
 
-  app.get("/api/tourist/saved/:userId", (req, res) => {
-    const saved = db.prepare(`
-      SELECT l.* 
-      FROM listings l 
-      JOIN saved_listings s ON l.id = s.listingId 
-      WHERE s.userId = ?
-    `).all(req.params.userId);
-    res.json(saved);
+  app.get("/api/tourist/saved/:userId", async (req, res) => {
+    const { data, error } = await supabase
+      .from("saved_listings")
+      .select("listings(*)")
+      .eq("user_id", req.params.userId);
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json((data || []).map(d => d.listings));
   });
 
-  app.get("/api/tourist/searches/:userId", (req, res) => {
-    const searches = db.prepare(`
-      SELECT query, timestamp 
-      FROM search_queries 
-      WHERE userId = ? 
-      ORDER BY timestamp DESC 
-      LIMIT 10
-    `).all(req.params.userId);
-    res.json(searches);
+  app.get("/api/tourist/searches/:userId", async (req, res) => {
+    const { data, error } = await supabase
+      .from("search_queries")
+      .select("query, timestamp")
+      .eq("user_id", req.params.userId)
+      .order("timestamp", { ascending: false })
+      .limit(10);
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
   });
 
-  app.get("/api/business/stats/:businessId", (req, res) => {
+  app.get("/api/business/stats/:businessId", async (req, res) => {
     const bId = req.params.businessId;
     
     // Profile Views
-    const views = db.prepare(`
-      SELECT COUNT(*) as count, strftime('%Y-%m-%d', timestamp) as date 
-      FROM analytics 
-      WHERE businessId = ? AND type = 'view'
-      GROUP BY date
-    `).all(bId);
+    const { data: viewsData, error: viewsError } = await supabase
+      .from("analytics")
+      .select("timestamp")
+      .eq("business_id", bId)
+      .eq("type", "view");
 
     // Contact Interactions
-    const contacts = db.prepare(`
-      SELECT type, COUNT(*) as count 
-      FROM analytics 
-      WHERE businessId = ? AND type IN ('call', 'whatsapp', 'email')
-      GROUP BY type
-    `).all(bId);
+    const { data: contactsData, error: contactsError } = await supabase
+      .from("analytics")
+      .select("type")
+      .eq("business_id", bId)
+      .in("type", ["call", "whatsapp", "email"]);
 
     // Inquiries
-    const inquiries = db.prepare(`
-      SELECT COUNT(*) as count, strftime('%Y-%m-%d', timestamp) as date 
-      FROM analytics 
-      WHERE businessId = ? AND type = 'inquiry'
-      GROUP BY date
-    `).all(bId);
+    const { data: inquiriesData, error: inquiriesError } = await supabase
+      .from("analytics")
+      .select("timestamp")
+      .eq("business_id", bId)
+      .eq("type", "inquiry");
 
-    // Origin (Mocked based on metadata if exists, otherwise random for demo)
+    if (viewsError || contactsError || inquiriesError) {
+      return res.status(500).json({ error: "Failed to fetch stats" });
+    }
+
+    // Process views by date
+    const viewsMap: Record<string, number> = {};
+    viewsData?.forEach(v => {
+      const date = new Date(v.timestamp).toISOString().split('T')[0];
+      viewsMap[date] = (viewsMap[date] || 0) + 1;
+    });
+    const views = Object.entries(viewsMap).map(([date, count]) => ({ date, count }));
+
+    // Process contacts by type
+    const contactsMap: Record<string, number> = {};
+    contactsData?.forEach(c => {
+      contactsMap[c.type] = (contactsMap[c.type] || 0) + 1;
+    });
+    const contacts = Object.entries(contactsMap).map(([type, count]) => ({ type, count }));
+
+    // Process inquiries by date
+    const inquiriesMap: Record<string, number> = {};
+    inquiriesData?.forEach(i => {
+      const date = new Date(i.timestamp).toISOString().split('T')[0];
+      inquiriesMap[date] = (inquiriesMap[date] || 0) + 1;
+    });
+    const inquiries = Object.entries(inquiriesMap).map(([date, count]) => ({ date, count }));
+
     const origins = [
       { name: 'Botswana', value: 45 },
       { name: 'South Africa', value: 25 },
@@ -316,64 +192,117 @@ async function startServer() {
       { name: 'Germany', value: 5 },
     ];
 
-    // Performance Score
-    const score = 85; // Mocked score
-
-    res.json({ views, contacts, inquiries, origins, score });
+    res.json({ views, contacts, inquiries, origins, score: 85 });
   });
 
-  app.get("/api/admin/stats", (req, res) => {
-    const businesses = db.prepare("SELECT status, COUNT(*) as count FROM businesses GROUP BY status").all();
-    const categories = db.prepare("SELECT category, COUNT(*) as count FROM businesses GROUP BY category").all();
-    const interactions = db.prepare("SELECT type, COUNT(*) as count FROM analytics GROUP BY type").all();
-    const growth = db.prepare(`
-      SELECT COUNT(*) as count, strftime('%Y-%m', timestamp) as month 
-      FROM users 
-      GROUP BY month
-    `).all();
+  app.get("/api/admin/stats", async (req, res) => {
+    const { data: businessesData } = await supabase.from("businesses").select("status");
+    const { data: categoriesData } = await supabase.from("businesses").select("category");
+    const { data: interactionsData } = await supabase.from("analytics").select("type");
+    const { data: growthData } = await supabase.from("profiles").select("created_at");
+
+    const businesses: any[] = [];
+    const statuses = ['pending', 'approved', 'rejected'];
+    statuses.forEach(s => {
+      businesses.push({ status: s, count: businessesData?.filter(b => b.status === s).length || 0 });
+    });
+
+    const categoriesMap: Record<string, number> = {};
+    categoriesData?.forEach(c => {
+      categoriesMap[c.category] = (categoriesMap[c.category] || 0) + 1;
+    });
+    const categories = Object.entries(categoriesMap).map(([category, count]) => ({ category, count }));
+
+    const interactionsMap: Record<string, number> = {};
+    interactionsData?.forEach(i => {
+      interactionsMap[i.type] = (interactionsMap[i.type] || 0) + 1;
+    });
+    const interactions = Object.entries(interactionsMap).map(([type, count]) => ({ type, count }));
+
+    const growthMap: Record<string, number> = {};
+    growthData?.forEach(g => {
+      const month = new Date(g.created_at).toISOString().slice(0, 7);
+      growthMap[month] = (growthMap[month] || 0) + 1;
+    });
+    const growth = Object.entries(growthMap).map(([month, count]) => ({ month, count }));
 
     res.json({ businesses, categories, interactions, growth });
   });
 
-  app.post("/api/feedback", (req, res) => {
+  app.post("/api/feedback", async (req, res) => {
     const { name, email, comment } = req.body;
-    db.prepare("INSERT INTO feedback (name, email, comment) VALUES (?, ?, ?)").run(name, email, comment);
+    const { error } = await supabase.from("feedback").insert({ name, email, comment });
+    if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
   });
 
-  app.post("/api/business/register", (req, res) => {
+  app.post("/api/business/register", async (req, res) => {
     const { userId, name, category, region, town, phone, whatsapp, email, description, package: pkg, certificateUrl, paymentProofUrl } = req.body;
-    const result = db.prepare(`
-      INSERT INTO businesses (userId, name, category, region, town, phone, whatsapp, email, description, package, certificateUrl, paymentProofUrl, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).run(userId, name, category, region, town, phone, whatsapp, email, description, pkg, certificateUrl, paymentProofUrl || null);
-    res.json({ success: true, businessId: result.lastInsertRowid });
+    const { data, error } = await supabase
+      .from("businesses")
+      .insert({
+        user_id: userId,
+        name,
+        category,
+        region,
+        town,
+        phone,
+        whatsapp,
+        email,
+        description,
+        package: pkg,
+        certificate_url: certificateUrl,
+        payment_proof_url: paymentProofUrl || null,
+        status: 'pending'
+      })
+      .select()
+      .single();
+    
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true, businessId: data.id });
   });
 
-  app.get("/api/admin/registrations", (req, res) => {
-    const registrations = db.prepare(`
-      SELECT b.*, u.name as ownerName, u.email as ownerEmail 
-      FROM businesses b 
-      JOIN users u ON b.userId = u.id 
-      WHERE b.status = 'pending'
-    `).all();
+  app.get("/api/admin/registrations", async (req, res) => {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("*, profiles!inner(name, email)")
+      .eq("status", "pending");
+    
+    if (error) return res.status(500).json({ error: error.message });
+    
+    const registrations = (data || []).map(b => ({
+      ...b,
+      ownerName: b.profiles.name,
+      ownerEmail: b.profiles.email
+    }));
+    
     res.json(registrations);
   });
 
-  app.post("/api/admin/approve", (req, res) => {
-    const { businessId, status } = req.body; // status: approved or rejected
-    db.prepare("UPDATE businesses SET status = ? WHERE id = ?").run(status, businessId);
+  app.post("/api/admin/approve", async (req, res) => {
+    const { businessId, status } = req.body;
+    const { error } = await supabase
+      .from("businesses")
+      .update({ status })
+      .eq("id", businessId);
+    
+    if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
   });
 
-  app.get("/api/business/analytics/:businessId", (req, res) => {
-    const stats = db.prepare(`
-      SELECT type, COUNT(*) as count, strftime('%Y-%m-%d', timestamp) as date
-      FROM analytics a
-      JOIN listings l ON a.listingId = l.id
-      WHERE l.businessId = ?
-      GROUP BY type, date
-    `).all(req.params.businessId);
+  app.get("/api/business/analytics/:businessId", async (req, res) => {
+    const { data, error } = await supabase
+      .from("analytics")
+      .select("type, timestamp, listings!inner(business_id)")
+      .eq("listings.business_id", req.params.businessId);
+    
+    if (error) return res.status(500).json({ error: error.message });
+    
+    const stats = (data || []).map(d => ({
+      type: d.type,
+      date: new Date(d.timestamp).toISOString().split('T')[0]
+    }));
+    
     res.json(stats);
   });
 

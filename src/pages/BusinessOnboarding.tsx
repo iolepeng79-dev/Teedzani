@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../App";
 import { 
@@ -12,9 +12,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "../lib/supabase";
 
 const REGIONS: Record<string, string[]> = {
   "South-East": ["Gaborone", "Ramotswa", "Moshupa", "Other"],
@@ -63,50 +65,106 @@ export default function BusinessOnboarding() {
     email: "",
     description: "",
     package: "Basic",
-    certificateUrl: "https://example.com/cert.pdf",
-    paymentProofUrl: "https://example.com/payment.pdf",
     ownerName: "",
     ownerEmail: "",
     password: ""
   });
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const { login } = useAuth();
+  
+  const certInputRef = useRef<HTMLInputElement>(null);
+  const paymentInputRef = useRef<HTMLInputElement>(null);
+  
+  const { fetchProfile } = useAuth();
   const navigate = useNavigate();
 
   const handleNext = () => setStep(step + 1);
   const handleBack = () => setStep(step - 1);
 
+  const uploadFile = async (file: File, path: string) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${path}/${fileName}`;
+
+    const { error: uploadError, data } = await supabase.storage
+      .from('tourbots')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('tourbots')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
     
-    // 1. Register User first
-    const userRes = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.ownerName,
+    try {
+      if (!certFile) throw new Error("Please upload your BTO certificate");
+      if (formData.package !== "Basic" && !paymentFile) throw new Error("Please upload proof of payment");
+
+      // 1. Register User
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.ownerEmail,
         password: formData.password,
-        role: "business"
-      }),
-    });
-    const userData = await userRes.json();
-    
-    if (userRes.ok) {
-      // 2. Register Business
-      const bizRes = await fetch("/api/business/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData.user.id,
-          ...formData,
-          town: formData.town === "Other" ? formData.otherTown : formData.town
-        }),
       });
-      
-      if (bizRes.ok) {
-        setSubmitted(true);
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Registration failed");
+
+      // 2. Create Profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: formData.ownerName,
+          email: formData.ownerEmail,
+          role: 'business'
+        });
+
+      if (profileError) throw profileError;
+
+      // 3. Upload Files
+      const certUrl = await uploadFile(certFile, `certificates/${authData.user.id}`);
+      let paymentUrl = null;
+      if (paymentFile) {
+        paymentUrl = await uploadFile(paymentFile, `payments/${authData.user.id}`);
       }
+
+      // 4. Register Business via API (to handle status and other logic if needed, or direct to supabase)
+      const { error: bizError } = await supabase
+        .from('businesses')
+        .insert({
+          user_id: authData.user.id,
+          name: formData.name,
+          category: formData.category,
+          region: formData.region,
+          town: formData.town === "Other" ? formData.otherTown : formData.town,
+          phone: formData.phone,
+          whatsapp: formData.whatsapp,
+          email: formData.email,
+          description: formData.description,
+          package: formData.package,
+          certificate_url: certUrl,
+          payment_proof_url: paymentUrl,
+          status: 'pending'
+        });
+
+      if (bizError) throw bizError;
+
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,6 +214,13 @@ export default function BusinessOnboarding() {
           ))}
         </div>
       </div>
+
+      {error && (
+        <div className="max-w-4xl mx-auto mb-6 bg-red-50 text-red-600 p-4 rounded-2xl flex items-center gap-3 font-medium border border-red-100">
+          <AlertCircle size={20} />
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="bg-white p-8 md:p-12 rounded-[40px] border border-black/5 shadow-xl">
         <AnimatePresence mode="wait">
@@ -315,9 +380,30 @@ export default function BusinessOnboarding() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">BTO Certificate (PDF/Image)</label>
-                    <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#5A5A40] transition-colors cursor-pointer">
-                      <Upload className="mx-auto text-gray-400 mb-2" />
-                      <p className="text-xs font-bold text-gray-500 uppercase">Click to upload certificate</p>
+                    <input 
+                      type="file" 
+                      ref={certInputRef}
+                      onChange={e => setCertFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      accept=".pdf,image/*"
+                    />
+                    <div 
+                      onClick={() => certInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer ${
+                        certFile ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-[#5A5A40]"
+                      }`}
+                    >
+                      {certFile ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <CheckCircle2 className="text-green-500" />
+                          <p className="text-xs font-bold text-green-700">{certFile.name}</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="mx-auto text-gray-400 mb-2" />
+                          <p className="text-xs font-bold text-gray-500 uppercase">Click to upload certificate</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -398,9 +484,30 @@ export default function BusinessOnboarding() {
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-amber-900 mb-2">Proof of Payment (PDF/Image)</label>
-                        <div className="border-2 border-dashed border-amber-200 bg-white rounded-2xl p-6 text-center hover:border-[#5A5A40] transition-colors cursor-pointer">
-                          <Upload className="mx-auto text-amber-400 mb-2" />
-                          <p className="text-[10px] font-bold text-amber-600 uppercase">Upload Proof of Payment</p>
+                        <input 
+                          type="file" 
+                          ref={paymentInputRef}
+                          onChange={e => setPaymentFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          accept=".pdf,image/*"
+                        />
+                        <div 
+                          onClick={() => paymentInputRef.current?.click()}
+                          className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer ${
+                            paymentFile ? "border-green-500 bg-white" : "border-amber-200 bg-white hover:border-[#5A5A40]"
+                          }`}
+                        >
+                          {paymentFile ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <CheckCircle2 className="text-green-500" />
+                              <p className="text-xs font-bold text-green-700">{paymentFile.name}</p>
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="mx-auto text-amber-400 mb-2" />
+                              <p className="text-[10px] font-bold text-amber-600 uppercase">Upload Proof of Payment</p>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -447,8 +554,10 @@ export default function BusinessOnboarding() {
                 </button>
                 <button 
                   type="submit"
-                  className="bg-[#5A5A40] text-white px-12 py-4 rounded-2xl font-bold hover:bg-[#4A4A30] transition-all shadow-xl shadow-[#5A5A40]/20"
+                  disabled={loading}
+                  className="bg-[#5A5A40] text-white px-12 py-4 rounded-2xl font-bold hover:bg-[#4A4A30] transition-all shadow-xl shadow-[#5A5A40]/20 flex items-center gap-2 disabled:opacity-50"
                 >
+                  {loading ? <Loader2 className="animate-spin" /> : null}
                   Submit for Review
                 </button>
               </div>

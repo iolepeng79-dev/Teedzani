@@ -37,6 +37,8 @@ const categories = [
   { id: "Aviation Tours", icon: Plane, color: "bg-cyan-100 text-cyan-600" },
 ];
 
+import BotswanaHeatmap from "../components/BotswanaHeatmap";
+
 export default function TouristDashboard() {
   const { user } = useAuth();
   const [savedListings, setSavedListings] = useState<any[]>([]);
@@ -187,6 +189,7 @@ export default function TouristDashboard() {
 
         <div className="space-y-12">
           <SmartTripPlanner />
+          <BotswanaHeatmap />
 
           <div className="bg-[#5A5A40] p-8 rounded-[40px] text-white">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">

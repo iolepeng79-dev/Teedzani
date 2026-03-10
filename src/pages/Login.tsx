@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../App";
 import { User, Briefcase, Shield, ArrowRight, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { supabase } from "../lib/supabase";
 
 export default function Login() {
   const location = useLocation();
@@ -10,7 +11,8 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { fetchProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,17 +24,36 @@ export default function Login() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, role }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      login(data.user, data.business);
+    setLoading(true);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+
+      // Verify role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (profile.role !== role) {
+        await supabase.auth.signOut();
+        throw new Error(`This account is registered as a ${profile.role}, not a ${role}.`);
+      }
+
+      await fetchProfile(authData.user.id);
       navigate("/dashboard");
-    } else {
-      setError(data.error);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 

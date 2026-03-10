@@ -36,6 +36,8 @@ import { motion, AnimatePresence } from "motion/react";
 
 const COLORS = ['#5A5A40', '#8A8A60', '#C0C0B0', '#E0E0D0', '#F5F5F0'];
 
+import BotswanaHeatmap from "../components/BotswanaHeatmap";
+
 export default function AdminDashboard() {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -221,6 +223,10 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="mb-12">
+        <BotswanaHeatmap />
       </div>
 
       {/* Pending Requests Section */}

@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Search, Filter, MapPin, Star } from "lucide-react";
 import ListingCard from "../components/ListingCard";
+import { useAuth } from "../App";
 
 export default function Explore() {
   const { category } = useParams();
+  const { user } = useAuth();
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -22,6 +24,23 @@ export default function Explore() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (search.length > 3) {
+      const timer = setTimeout(() => {
+        fetch("/api/analytics/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user?.id,
+            type: "search",
+            metadata: { query: search }
+          })
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [search, user]);
 
   const filteredListings = listings.filter(l => {
     const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) || 

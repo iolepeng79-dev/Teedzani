@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../App";
 import { User, ChevronLeft } from "lucide-react";
 import { motion } from "motion/react";
+import { supabase } from "../lib/supabase";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -12,23 +13,43 @@ export default function Register() {
     country: ""
   });
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { fetchProfile } = useAuth();
   const navigate = useNavigate();
 
   const handleRegister = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...formData, role: "tourist" }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      login(data.user);
+    setLoading(true);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Registration failed");
+
+      // Create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: formData.name,
+          email: formData.email,
+          role: 'tourist',
+          country: formData.country || null
+        });
+
+      if (profileError) throw profileError;
+
+      await fetchProfile(authData.user.id);
       navigate("/dashboard");
-    } else {
-      setError(data.error);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 

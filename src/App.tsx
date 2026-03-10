@@ -10,6 +10,7 @@ import TouristDashboard from "./pages/TouristDashboard";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ListingDetail from "./pages/ListingDetail";
+import { supabase } from "./lib/supabase";
 
 // Auth Context
 const AuthContext = createContext<any>(null);
@@ -19,32 +20,75 @@ export const useAuth = () => useContext(AuthContext);
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("tourbots_user");
-    const savedBiz = localStorage.getItem("tourbots_biz");
-    if (savedUser) setUser(JSON.parse(savedUser));
-    if (savedBiz) setBusiness(JSON.parse(savedBiz));
+    // Check active sessions and subscribe to auth changes
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setBusiness(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (userData: any, bizData?: any) => {
-    setUser(userData);
-    localStorage.setItem("tourbots_user", JSON.stringify(userData));
-    if (bizData) {
-      setBusiness(bizData);
-      localStorage.setItem("tourbots_biz", JSON.stringify(bizData));
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      if (profile.role === 'business') {
+        const { data: biz, error: bizError } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!bizError) setBusiness(biz);
+      }
+
+      setUser(profile);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setBusiness(null);
-    localStorage.removeItem("tourbots_user");
-    localStorage.removeItem("tourbots_biz");
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f0]">
+        <div className="w-12 h-12 border-4 border-[#5A5A40] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ user, business, login, logout, setBusiness }}>
+    <AuthContext.Provider value={{ user, business, logout, setBusiness, fetchProfile }}>
       <Router>
         <div className="min-h-screen bg-[#f5f5f0] font-sans text-[#1a1a1a]">
           <Navbar />
