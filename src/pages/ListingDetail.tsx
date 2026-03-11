@@ -140,7 +140,7 @@ export default function ListingDetail() {
         {/* Sidebar Actions */}
         <div className="space-y-6">
           <div className="sticky top-36 space-y-6">
-            <WeatherCard location={listing.town} />
+            <WeatherCard location={town} />
             
             <div className="bg-white p-8 rounded-3xl border border-black/5 shadow-xl">
               <h3 className="text-xl font-bold mb-6">Contact & Booking</h3>

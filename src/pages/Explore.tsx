@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Search, Filter, MapPin, Star } from "lucide-react";
+import { Search, Filter, MapPin, Star, CloudSun } from "lucide-react";
 import ListingCard from "../components/ListingCard";
+import WeatherInfo from "../components/WeatherInfo";
 import { useAuth } from "../App";
 
 export default function Explore() {
@@ -53,9 +54,12 @@ export default function Explore() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-serif font-bold text-[#5A5A40] mb-4">Explore Botswana</h1>
-        <p className="text-gray-500">Discover the best places to visit, stay, and eat.</p>
+      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-serif font-bold text-[#5A5A40] mb-4">Explore Botswana</h1>
+          <p className="text-gray-500">Discover the best places to visit, stay, and eat.</p>
+        </div>
+        <WeatherInfo lat={-24.6282} lng={25.9231} />
       </div>
 
       {/* Search and Filter Bar */}

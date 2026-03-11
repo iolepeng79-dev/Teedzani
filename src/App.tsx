@@ -11,6 +11,7 @@ import BusinessDashboard from "./pages/BusinessDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ListingDetail from "./pages/ListingDetail";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
+import { usePWA } from "./hooks/usePWA";
 
 // Auth Context
 const AuthContext = createContext<any>(null);
@@ -21,6 +22,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { isInstallable, installApp } = usePWA();
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -113,6 +115,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/explore/:category" element={<Explore />} />
+              <Route path="/map" element={<Explore />} /> {/* Using Explore as a placeholder for Map for now */}
               <Route path="/listing/:id" element={<ListingDetail />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -132,16 +135,23 @@ export default function App() {
           </main>
           
           {/* Global App Install Banner */}
-          <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white p-4 rounded-2xl shadow-xl border border-black/5 flex items-center justify-between z-50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#5A5A40] rounded-lg flex items-center justify-center text-white font-bold">TB</div>
-              <div>
-                <p className="text-sm font-semibold">TourBots Mobile</p>
-                <p className="text-xs text-gray-500">Discover Botswana Smarter</p>
+          {isInstallable && (
+            <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white p-4 rounded-3xl shadow-2xl border border-black/5 flex items-center justify-between z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#5A5A40] rounded-xl flex items-center justify-center text-white font-bold">TB</div>
+                <div>
+                  <p className="text-sm font-bold">TourBots App</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest">Install for Offline Access</p>
+                </div>
               </div>
+              <button 
+                onClick={installApp}
+                className="bg-[#5A5A40] text-white text-xs px-5 py-2.5 rounded-full font-bold hover:bg-[#4A4A30] transition-colors"
+              >
+                Install
+              </button>
             </div>
-            <button className="bg-[#5A5A40] text-white text-xs px-4 py-2 rounded-full font-medium">Install</button>
-          </div>
+          )}
         </div>
       </Router>
     </AuthContext.Provider>

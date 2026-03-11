@@ -1,12 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../App";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Download } from "lucide-react";
 import { useState } from "react";
+import { usePWA } from "../hooks/usePWA";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const { isInstallable, installApp } = usePWA();
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -26,6 +28,15 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
+          {isInstallable && (
+            <button 
+              onClick={installApp}
+              className="flex items-center gap-2 text-sm font-bold text-[#5A5A40] hover:bg-[#5A5A40]/5 px-4 py-2 rounded-full transition-all"
+            >
+              <Download size={16} />
+              Install App
+            </button>
+          )}
           {navLinks.map((link) => (
             <Link key={link.name} to={link.path} className="text-sm font-medium text-gray-600 hover:text-[#5A5A40] transition-colors">
               {link.name}
@@ -57,6 +68,15 @@ export default function Navbar() {
       {/* Mobile Nav */}
       {isOpen && (
         <div className="md:hidden bg-white border-b border-black/5 p-4 flex flex-col gap-4">
+          {isInstallable && (
+            <button 
+              onClick={() => { installApp(); setIsOpen(false); }}
+              className="flex items-center gap-2 text-sm font-bold text-[#5A5A40] bg-[#5A5A40]/10 px-4 py-3 rounded-xl mb-2"
+            >
+              <Download size={18} />
+              Install App
+            </button>
+          )}
           {navLinks.map((link) => (
             <Link key={link.name} to={link.path} className="text-sm font-medium text-gray-600" onClick={() => setIsOpen(false)}>
               {link.name}
