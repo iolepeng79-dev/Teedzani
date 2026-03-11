@@ -11,9 +11,9 @@ export default function ListingCard({ listing }: { listing: any }) {
     });
   };
 
-  const name = listing.business_name || listing.name || listing.title || "Untitled Listing";
-  const town = listing.town || listing.location || "Unknown Location";
-  const image = listing.image || listing.image_url || `https://picsum.photos/seed/${listing.id}/800/600`;
+  const name = listing.business_name || "Untitled Listing";
+  const town = listing.town || "Unknown Location";
+  const image = listing.image_url || `https://picsum.photos/seed/${listing.id}/800/600`;
 
   return (
     <motion.div

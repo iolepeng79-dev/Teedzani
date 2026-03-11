@@ -1,7 +1,3 @@
--- =========================================
--- TourBots: Consolidated SQL for Supabase
--- =========================================
-
 -- Profiles (tourists & businesses metadata)
 CREATE TABLE IF NOT EXISTS profiles (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,6 +12,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     business_name TEXT,
     category TEXT,
     description TEXT,
+    package_name TEXT,
     status TEXT DEFAULT 'draft' CHECK(status IN ('draft','pending','approved','rejected')),
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
