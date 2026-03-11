@@ -125,7 +125,7 @@ export default function BusinessOnboarding() {
         .from('profiles')
         .insert({
           id: authData.user.id,
-          name: formData.ownerName,
+          full_name: formData.ownerName,
           email: formData.ownerEmail,
           role: 'business'
         });
@@ -139,12 +139,19 @@ export default function BusinessOnboarding() {
         paymentUrl = await uploadFile(paymentFile, `payments/${authData.user.id}`);
       }
 
+      // 3. Get Package ID
+      const { data: pkgData } = await supabase
+        .from('packages')
+        .select('id')
+        .eq('name', formData.package)
+        .single();
+
       // 4. Register Business via API (to handle status and other logic if needed, or direct to supabase)
       const { error: bizError } = await supabase
         .from('businesses')
         .insert({
-          user_id: authData.user.id,
-          name: formData.name,
+          profile_id: authData.user.id,
+          business_name: formData.name,
           category: formData.category,
           region: formData.region,
           town: formData.town === "Other" ? formData.otherTown : formData.town,
@@ -152,9 +159,7 @@ export default function BusinessOnboarding() {
           whatsapp: formData.whatsapp,
           email: formData.email,
           description: formData.description,
-          package: formData.package,
-          certificate_url: certUrl,
-          payment_proof_url: paymentUrl,
+          package_id: pkgData?.id || null,
           status: 'pending'
         });
 

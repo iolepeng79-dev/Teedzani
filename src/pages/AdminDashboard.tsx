@@ -210,13 +210,13 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
               <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Top Region</p>
-              <p className="text-lg font-bold">North-West (Maun)</p>
-              <p className="text-xs text-white/70 mt-1">Receiving 42% of total engagement.</p>
+              <p className="text-lg font-bold">{stats?.intelligence?.topRegion || "North-West (Maun)"}</p>
+              <p className="text-xs text-white/70 mt-1">Receiving {stats?.intelligence?.regionEngagement || 42}% of total engagement.</p>
             </div>
             <div className="p-4 bg-white/10 rounded-2xl border border-white/10">
               <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">Demand Forecast</p>
-              <p className="text-lg font-bold">+15% Growth</p>
-              <p className="text-xs text-white/70 mt-1">Projected increase in safari camps for Q3.</p>
+              <p className="text-lg font-bold">+{stats?.intelligence?.demandForecast || 15}% Growth</p>
+              <p className="text-xs text-white/70 mt-1">Projected increase in {stats?.intelligence?.forecastCategory || "safari camps"} for Q3.</p>
             </div>
             <button className="w-full bg-white text-[#5A5A40] py-4 rounded-2xl font-bold hover:bg-gray-100 transition-all">
               Export Full Report

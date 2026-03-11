@@ -67,7 +67,7 @@ export default function TouristDashboard() {
             animate={{ opacity: 1, x: 0 }}
             className="text-4xl font-serif font-bold text-[#5A5A40] mb-2"
           >
-            Dumela, {user?.name}!
+            Dumela, {user?.full_name || user?.name}!
           </motion.h1>
           <p className="text-gray-500">Your personal gateway to Botswana's finest experiences.</p>
         </div>

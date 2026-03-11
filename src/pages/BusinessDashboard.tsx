@@ -84,7 +84,7 @@ export default function BusinessDashboard() {
             animate={{ opacity: 1, x: 0 }}
             className="text-4xl font-serif font-bold text-[#5A5A40] mb-2"
           >
-            {business.name}
+            {business.business_name || business.name}
           </motion.h1>
           <div className="flex items-center gap-2 text-gray-500">
             <CheckCircle2 size={16} className="text-green-500" />

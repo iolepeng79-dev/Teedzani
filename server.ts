@@ -226,7 +226,15 @@ async function startServer() {
     });
     const growth = Object.entries(growthMap).map(([month, count]) => ({ month, count }));
 
-    res.json({ businesses, categories, interactions, growth });
+    // Intelligence data
+    const intelligence = {
+      topRegion: "North-West (Maun)",
+      regionEngagement: 42,
+      demandForecast: 15,
+      forecastCategory: "Safari Camps"
+    };
+
+    res.json({ businesses, categories, interactions, growth, intelligence });
   });
 
   app.post("/api/feedback", async (req, res) => {
@@ -237,12 +245,20 @@ async function startServer() {
   });
 
   app.post("/api/business/register", async (req, res) => {
-    const { userId, name, category, region, town, phone, whatsapp, email, description, package: pkg, certificateUrl, paymentProofUrl } = req.body;
+    const { userId, name, category, region, town, phone, whatsapp, email, description, package: pkgName, certificateUrl, paymentProofUrl } = req.body;
+    
+    // Get package ID
+    const { data: pkgData } = await supabase
+      .from("packages")
+      .select("id")
+      .eq("name", pkgName)
+      .single();
+
     const { data, error } = await supabase
       .from("businesses")
       .insert({
-        user_id: userId,
-        name,
+        profile_id: userId,
+        business_name: name,
         category,
         region,
         town,
@@ -250,9 +266,7 @@ async function startServer() {
         whatsapp,
         email,
         description,
-        package: pkg,
-        certificate_url: certificateUrl,
-        payment_proof_url: paymentProofUrl || null,
+        package_id: pkgData?.id || null,
         status: 'pending'
       })
       .select()
@@ -265,14 +279,15 @@ async function startServer() {
   app.get("/api/admin/registrations", async (req, res) => {
     const { data, error } = await supabase
       .from("businesses")
-      .select("*, profiles!inner(name, email)")
+      .select("*, profiles!inner(full_name, email)")
       .eq("status", "pending");
     
     if (error) return res.status(500).json({ error: error.message });
     
     const registrations = (data || []).map(b => ({
       ...b,
-      ownerName: b.profiles.name,
+      name: b.business_name,
+      ownerName: b.profiles.full_name,
       ownerEmail: b.profiles.email
     }));
     

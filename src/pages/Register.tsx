@@ -36,7 +36,7 @@ export default function Register() {
         .from('profiles')
         .insert({
           id: authData.user.id,
-          name: formData.name,
+          full_name: formData.name,
           email: formData.email,
           role: 'tourist',
           country: formData.country || null

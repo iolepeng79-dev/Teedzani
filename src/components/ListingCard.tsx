@@ -11,7 +11,7 @@ export default function ListingCard({ listing }: { listing: any }) {
     });
   };
 
-  const name = listing.name || listing.title || "Untitled Listing";
+  const name = listing.business_name || listing.name || listing.title || "Untitled Listing";
   const town = listing.town || listing.location || "Unknown Location";
   const image = listing.image || listing.image_url || `https://picsum.photos/seed/${listing.id}/800/600`;
 

@@ -53,7 +53,7 @@ export default function ListingDetail() {
   if (loading) return <div className="max-w-7xl mx-auto px-4 py-20 text-center">Loading...</div>;
   if (!listing) return <div className="max-w-7xl mx-auto px-4 py-20 text-center">Listing not found</div>;
 
-  const name = listing.name || listing.title || "Untitled Listing";
+  const name = listing.business_name || listing.name || listing.title || "Untitled Listing";
   const town = listing.town || listing.location || "Unknown Location";
   const image = listing.image || listing.image_url || `https://picsum.photos/seed/${listing.id}/1200/800`;
 

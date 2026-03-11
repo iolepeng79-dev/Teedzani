@@ -71,7 +71,7 @@ export default function App() {
         const { data: biz, error: bizError } = await supabase
           .from('businesses')
           .select('*')
-          .eq('user_id', userId)
+          .eq('profile_id', userId)
           .single();
         
         if (!bizError) setBusiness(biz);
