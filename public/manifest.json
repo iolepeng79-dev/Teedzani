@@ -1,19 +1,19 @@
 {
   "name": "TourBots",
   "short_name": "TourBots",
-  "description": "Discover and book unique tours with TourBots.",
+  "description": "Unified tourism discovery platform for Botswana.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f5f0",
+  "background_color": "#ffffff",
   "theme_color": "#5A5A40",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/tourbots-icon/192/192",
+      "src": "https://picsum.photos/seed/tourbots/192/192",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://picsum.photos/seed/tourbots-icon/512/512",
+      "src": "https://picsum.photos/seed/tourbots/512/512",
       "sizes": "512x512",
       "type": "image/png"
     }
