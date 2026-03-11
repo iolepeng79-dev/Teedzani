@@ -10,7 +10,8 @@ import TouristDashboard from "./pages/TouristDashboard";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ListingDetail from "./pages/ListingDetail";
-import { supabase } from "./lib/supabase";
+import { supabase, isSupabaseConfigured } from "./lib/supabase";
+import { AlertCircle } from "lucide-react";
 
 // Auth Context
 const AuthContext = createContext<any>(null);
@@ -23,6 +24,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Check active sessions and subscribe to auth changes
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -74,10 +80,32 @@ export default function App() {
   };
 
   const logout = async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
     setUser(null);
     setBusiness(null);
   };
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f0] p-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-black/5 shadow-xl text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={32} />
+          </div>
+          <h2 className="text-2xl font-serif font-bold text-[#5A5A40] mb-4">Backend Configuration Required</h2>
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            Please set the <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">VITE_SUPABASE_URL</code> and <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">VITE_SUPABASE_ANON_KEY</code> environment variables in the settings menu to connect your Supabase project.
+          </p>
+          <div className="text-xs text-gray-400 font-mono bg-gray-50 p-4 rounded-xl text-left overflow-x-auto">
+            # .env.example<br />
+            VITE_SUPABASE_URL=your-url.supabase.co<br />
+            VITE_SUPABASE_ANON_KEY=your-anon-key
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

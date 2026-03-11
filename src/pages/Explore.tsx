@@ -43,8 +43,10 @@ export default function Explore() {
   }, [search, user]);
 
   const filteredListings = listings.filter(l => {
-    const matchesSearch = l.name.toLowerCase().includes(search.toLowerCase()) || 
-                         l.town.toLowerCase().includes(search.toLowerCase());
+    const name = l.name || l.title || "";
+    const town = l.town || l.location || "";
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase()) || 
+                         town.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === "All" || l.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });

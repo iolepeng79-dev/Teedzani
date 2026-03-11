@@ -53,7 +53,11 @@ export default function ListingDetail() {
   if (loading) return <div className="max-w-7xl mx-auto px-4 py-20 text-center">Loading...</div>;
   if (!listing) return <div className="max-w-7xl mx-auto px-4 py-20 text-center">Listing not found</div>;
 
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.name + " " + listing.town + " Botswana")}`;
+  const name = listing.name || listing.title || "Untitled Listing";
+  const town = listing.town || listing.location || "Unknown Location";
+  const image = listing.image || listing.image_url || `https://picsum.photos/seed/${listing.id}/1200/800`;
+
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " " + town + " Botswana")}`;
 
   return (
     <div className="pb-20">
@@ -80,8 +84,8 @@ export default function ListingDetail() {
             className="rounded-3xl overflow-hidden mb-8 aspect-video"
           >
             <img 
-              src={listing.image || `https://picsum.photos/seed/${listing.id}/1200/800`} 
-              alt={listing.name} 
+              src={image} 
+              alt={name} 
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
@@ -93,11 +97,11 @@ export default function ListingDetail() {
               <span>•</span>
               <span>{listing.region}</span>
             </div>
-            <h1 className="text-4xl font-serif font-bold text-gray-900 mb-4">{listing.name}</h1>
+            <h1 className="text-4xl font-serif font-bold text-gray-900 mb-4">{name}</h1>
             <div className="flex items-center gap-6 text-gray-600">
               <div className="flex items-center gap-1">
                 <MapPin size={18} className="text-[#5A5A40]" />
-                <span>{listing.town}, Botswana</span>
+                <span>{town}, Botswana</span>
               </div>
               <div className="flex items-center gap-1">
                 <Star size={18} className="text-amber-500 fill-amber-500" />

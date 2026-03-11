@@ -11,6 +11,10 @@ export default function ListingCard({ listing }: { listing: any }) {
     });
   };
 
+  const name = listing.name || listing.title || "Untitled Listing";
+  const town = listing.town || listing.location || "Unknown Location";
+  const image = listing.image || listing.image_url || `https://picsum.photos/seed/${listing.id}/800/600`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -21,8 +25,8 @@ export default function ListingCard({ listing }: { listing: any }) {
       <Link to={`/listing/${listing.id}`} onClick={trackClick}>
         <div className="relative h-56 overflow-hidden">
           <img 
-            src={listing.image || `https://picsum.photos/seed/${listing.id}/800/600`} 
-            alt={listing.name} 
+            src={image} 
+            alt={name} 
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             referrerPolicy="no-referrer"
           />
@@ -35,7 +39,7 @@ export default function ListingCard({ listing }: { listing: any }) {
         </div>
         <div className="p-6">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold text-gray-800 line-clamp-1">{listing.name}</h3>
+            <h3 className="text-xl font-bold text-gray-800 line-clamp-1">{name}</h3>
             <div className="flex items-center gap-1 text-amber-500 font-bold">
               <Star size={16} fill="currentColor" />
               <span>{listing.rating || "4.5"}</span>
@@ -43,7 +47,7 @@ export default function ListingCard({ listing }: { listing: any }) {
           </div>
           <div className="flex items-center gap-1 text-gray-500 text-sm mb-4">
             <MapPin size={14} />
-            <span>{listing.town}, {listing.region}</span>
+            <span>{town}{listing.region ? `, ${listing.region}` : ""}</span>
           </div>
           <p className="text-gray-600 text-sm line-clamp-2 mb-6">
             {listing.description || "Experience the best of Botswana at this amazing location. Perfect for travelers seeking authenticity."}
