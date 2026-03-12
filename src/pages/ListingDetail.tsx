@@ -16,7 +16,7 @@ import {
 import { motion } from "motion/react";
 import WeatherCard from "../components/WeatherCard";
 import SafariIntelligence from "../components/SafariIntelligence";
-import { useAuth } from "../App";
+import { useAuth } from "../hooks/useAuth";
 
 export default function ListingDetail() {
   const { id } = useParams();

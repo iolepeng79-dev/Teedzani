@@ -6,7 +6,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Layout() {
-  const { isInstallable, install } = usePWA();
+  let pwa: any = {};
+  try {
+    pwa = usePWA();
+  } catch (e) {
+    console.error("Layout PWA error", e);
+  }
+  const { isInstallable, installApp } = pwa;
   const [showBanner, setShowBanner] = useState(true);
 
   return (
@@ -34,7 +40,7 @@ export default function Layout() {
               </div>
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={install}
+                  onClick={installApp}
                   className="px-6 py-3 bg-white text-[#5A5A40] rounded-2xl font-bold text-sm hover:bg-gray-100 transition-all shadow-lg"
                 >
                   Install

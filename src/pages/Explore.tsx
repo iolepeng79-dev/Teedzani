@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Search, Filter, MapPin, Star, CloudSun } from "lucide-react";
 import ListingCard from "../components/ListingCard";
 import WeatherInfo from "../components/WeatherInfo";
-import { useAuth } from "../App";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Explore() {
   const { category } = useParams();

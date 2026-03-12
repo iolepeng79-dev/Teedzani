@@ -1,6 +1,6 @@
 import { useState, FormEvent, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../App";
+import { useAuth } from "../hooks/useAuth";
 import { 
   Building2, 
   MapPin, 

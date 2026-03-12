@@ -16,7 +16,7 @@ export const usePWA = () => {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const install = async () => {
+  const installApp = async () => {
     if (!installPrompt) return;
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
@@ -25,5 +25,5 @@ export const usePWA = () => {
     }
   };
 
-  return { isInstallable, install };
+  return { isInstallable, installApp };
 };

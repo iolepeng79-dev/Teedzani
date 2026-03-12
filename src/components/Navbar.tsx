@@ -6,8 +6,23 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Navbar() {
-  const { user, profile, signOut } = useAuth();
-  const { isInstallable, install } = usePWA();
+  let auth: any = {};
+  let pwa: any = {};
+  
+  try {
+    auth = useAuth();
+  } catch (e) {
+    console.error("Navbar auth error", e);
+  }
+
+  try {
+    pwa = usePWA();
+  } catch (e) {
+    console.error("Navbar PWA error", e);
+  }
+
+  const { user, profile, signOut } = auth;
+  const { isInstallable, installApp } = pwa;
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -52,7 +67,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-4">
             {isInstallable && (
               <button 
-                onClick={install}
+                onClick={installApp}
                 className="flex items-center gap-2 px-4 py-2 bg-[#5A5A40]/10 text-[#5A5A40] rounded-full text-sm font-bold hover:bg-[#5A5A40]/20 transition-all"
               >
                 <Download size={16} />
@@ -77,7 +92,7 @@ export default function Navbar() {
               <div className="flex items-center gap-4">
                 <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-[#5A5A40]">Login</Link>
                 <Link 
-                  to="/signup" 
+                  to="/register" 
                   className="px-6 py-2 bg-[#5A5A40] text-white rounded-full text-sm font-bold hover:bg-[#4A4A30] transition-all shadow-lg shadow-[#5A5A40]/20"
                 >
                   Get Started
@@ -126,7 +141,7 @@ export default function Navbar() {
                   <div className="flex flex-col gap-4">
                     <Link to="/login" onClick={() => setIsOpen(false)} className="text-lg font-medium">Login</Link>
                     <Link 
-                      to="/signup" 
+                      to="/register" 
                       onClick={() => setIsOpen(false)}
                       className="w-full py-4 bg-[#5A5A40] text-white rounded-2xl text-center font-bold"
                     >

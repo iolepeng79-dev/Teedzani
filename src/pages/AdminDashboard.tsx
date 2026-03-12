@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../App";
+import { useAuth } from "../hooks/useAuth";
 import { 
   CheckCircle2, 
   XCircle, 
